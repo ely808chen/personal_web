@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<!-- Signature Animation -->
+<div class="signature-container">
+    <canvas id="signature-animation"></canvas>
+</div>
+
+<!-- Landing Screen -->
+<section class="landing-section">
+    <canvas id="landing-canvas"></canvas>
+    <div class="landing-content">
+        <h1>Project Space</h1>
+    </div>
+    <div class="scroll-container">
+        <span class="scroll-text">scroll to explore</span>
+        <div class="arrow"></div>
+    </div>
+</section>
+
+<!-- Main Content Section -->
+<section class="main-section">
+    <div class="intro-container">
+        <header class="header">
+            <h2>👋 Hi, I'm Ely</h2>
+            <p class="bio">
+                I'm a management consultant who decided to build small things on the side. 
+                <br><br>
+                I'm an Associate Consultant at Bain & Company in the Tokyo office. I 
+                graduated from Stanford University with a B.S. in Computer Science, specializing 
+                in the Artificial Intelligence track. As my consulting journey propels me to 
+                push the limits of Excel and PowerPoint, my only hope is that I don’t lose touch 
+                with my technical side <br><br>
+            </p>
+            <div class="links">
+                <a href="https://github.com/elychen" class="link">GitHub</a>
+                <a href="https://www.linkedin.com/in/elychen/" class="link">LinkedIn</a>
+                <a href="mailto:elychen@example.com" class="link">Email</a>
+            </div>
+        </header>
+
+        <div class="sections">
+            <a href="/projects" class="section-box">
+                <h3>Projects</h3>
+            </a>
+            <a href="/cv" class="section-box">
+                <h3>CV</h3>
+            </a>
+        </div>
+    </div>
+</section>
+
+<style>
+    .scroll-container {
+        /* Your existing styles for the container */
+        position: fixed;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%);
+        /* Add any other existing styles here */
+        opacity: 1;
+        transition: opacity 0.3s ease;
+    }
+
+    .scroll-container.hidden {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .scroll-text {
+        /* Your existing styles for the text */
+        /* Add any other existing styles here */
+    }
+
+    .arrow {
+        /* Your existing styles for the arrow */
+        /* Add any other existing styles here */
+    }
+
+    body {
+        font-family: 'italic Arial', sans-serif; /* Default font for the entire page */
+    }
+
+    .bio {
+        font-family: 'italic Arial', serif; /* Specific font for the bio section */
+    }
+
+    h2 {
+        font-family: 'Le Monde', Courier, monospace; /* Specific font for the heading */
+        font-size: 3rem;
+        font-weight: 600;
+        color: #1c1c1c;
+        margin-bottom: 1.5rem;
+    }
+
+    .intro-container {
+        max-width: 800px;
+        margin: 50px auto;
+        padding: 2rem;
+        background-color: rgba(255, 255, 255, 0.8);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        border-radius: 12px;
+        text-align: center;
+    }
+
+    .header {
+        margin-bottom: 2rem;
+    }
+
+    .bio {
+        font-size: 1.2rem;
+        line-height: 1.8;
+        color: #555;
+        margin-bottom: 2rem;
+    }
+
+    .links {
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        margin-top: 2rem;
+    }
+
+    .link {
+        text-decoration: none;
+        color: #0073e6;
+        font-size: 1.1rem;
+        transition: color 0.3s ease;
+        position: relative;
+    }
+
+    .link::after {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 2px;
+        background: #0073e6;
+        left: 0;
+        bottom: -4px;
+        transition: transform 0.3s ease;
+        transform: scaleX(0);
+    }
+
+    .link:hover::after {
+        transform: scaleX(1);
+    }
+
+    .sections {
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        margin-top: 3rem;
+    }
+
+    .section-box {
+        display: block;
+        width: 150px;
+        padding: 1rem;
+        background-color: rgba(255, 255, 255, 0.5);
+        border: 2px solid #0073e6;
+        border-radius: 8px;
+        text-align: center;
+        text-decoration: none;
+        color: #0073e6;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .section-box:hover {
+        background-color: #0073e6;
+        color: #fff;
+    }
+
+    .section-box h3 {
+        margin: 0;
+        font-size: 1.2rem;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const scrollContainer = document.querySelector('.scroll-container');
+        const viewportHeight = window.innerHeight;
+
+        window.addEventListener('scroll', function() {
+            if (window.scrollY >= viewportHeight) {
+                scrollContainer.classList.add('hidden');
+            } else {
+                scrollContainer.classList.remove('hidden');
+            }
+        });
+    });
+</script>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/landing-animation.js') }}"></script>
+<script src="{{ url_for('static', filename='js/intro-animation.js') }}"></script>
+<script src="{{ url_for('static', filename='js/signature-animation.js') }}"></script>
+{% endblock %} 

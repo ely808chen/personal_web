@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Epidemic Prediction Demo{% endblock %}
+
+{% block content %}
+<div class="project-demo">
+    <h1>Epidemic Prediction Interactive Demo</h1>
+    
+    <div class="demo-container">
+        <!-- Add your interactive visualization here -->
+        <div id="visualization"></div>
+        
+        <div class="controls">
+            <h3>Parameters</h3>
+            <div class="control-group">
+                <label for="population">Population Size:</label>
+                <input type="number" id="population" value="1000">
+            </div>
+            <!-- Add more controls as needed -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Add necessary JavaScript libraries -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="{{ url_for('static', filename='js/epidemic_prediction.js') }}"></script>
+{% endblock %} 

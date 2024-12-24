@@ -1,0 +1,15 @@
+personal-website/
+├── static/
+│   ├── css/
+│   │   └── style.css
+│   ├── js/
+│   │   └── main.js
+│   └── images/
+├── templates/
+│   ├── base.html
+│   ├── index.html
+│   ├── projects.html
+│   ├── about.html
+│   └── contact.html
+├── app.py
+└── requirements.txt 

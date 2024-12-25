@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project 1</title>
+    <link rel="stylesheet" href="/static/css/project1.css">
+    <script src="/static/js/signature-animation.js" defer></script>
+</head>
+<body>
+    <header>
+        <div class="home-link">
+            <a href="/">Home</a>
+        </div>
+        <nav>
+            <a href="https://www.linkedin.com/in/ely-c-0854a61a6/">linkedin</a>
+            <a href="elychen@hotmail.co.jp">email</a>
+            <a href="https://github.com/ely808chen" alt="github">github</a>
+        </nav>
+    </header>
+    <main>
+        <h1>Detecting Early Signs of Influenza Outbreak in Tokyo (DNM)</h1>
+        <p class="date">December 22nd, 2024</p>
+        <p class="description">This post is meant to be a simple demo of DNM model in action to detect early warning signals for influenza outbreaks.
+            While it explains the model at a high level (I-score), it does not go in deep on the theory of the model. It is to show that 
+            the DNM model is capable of detecting early signs of influenza outbreaks, and can be particularly useful measure especially if combined
+            with other measures to detect outbreaks (influenza, covid, etc).</p>
+        <!-- Main Content is written here -->
+        <section class="content">
+            <h2>Introduction</h2>
+            <p>
+                This project applies the <strong>I-score</strong> to detect early-warning signals for influenza outbreaks in Tokyo. 
+                The I-score is a dynamic metric derived from the landscape Dynamic Network Marker (DNM) model. It identifies 
+                wards that exhibit critical transitions by analyzing rapid fluctuations in their local network behaviors. 
+                By detecting these changes early, the model can predict outbreaks before they become widespread.
+            </p>
+            <p>
+                The DNM model is based on three core statistical properties:
+                <ol>
+                    <li>
+                        <strong>Fluctuations in Standard Deviation (SD):</strong> Rapid changes in variability within a ward indicate 
+                        instability. This is captured as the absolute difference in SD between consecutive time points, averaged across the ward's network.
+                    </li>
+                    <li>
+                        <strong>Intra-network Correlations (PCC-in):</strong> Sudden shifts in how strongly neighboring wards correlate 
+                        with each other are quantified using the Pearson correlation coefficient (PCC). The model tracks the absolute 
+                        changes in PCC values between a ward and its neighbors over time.
+                    </li>
+                    <li>
+                        <strong>Inter-network Correlations (PCC-out):</strong> Changes in correlations between a ward and non-neighboring wards 
+                        are also monitored, capturing broader network dynamics.
+                    </li>
+                </ol>
+            </p>
+            <p>
+                These properties are combined into the <strong>I-score</strong> formula for a ward's network at time <code>t</code>:
+                <pre style="background-color: #f4f4f4; padding: 10px; border-left: 4px solid #ccc;">
+                Iₜ = |ΔSDₜ(in)| * [|ΔPCCₜ(in)| + |ΔPCCₜ(out)|]
+                </pre>
+                Where:
+                <ul>
+                    <li><code>|ΔSDₜ(in)|</code> is the average absolute change in standard deviation for all nodes in the ward's local network.</li>
+                    <li><code>|ΔPCCₜ(in)|</code> is the average absolute change in intra-network correlation for nodes in the local network.</li>
+                    <li><code>|ΔPCCₜ(out)|</code> is the average absolute change in inter-network correlation between nodes inside and outside the local network.</li>
+                </ul>
+            </p>
+            <p>
+                The I-score quantifies critical behavior: a sudden spike indicates that the ward's network dynamics are destabilizing, signaling 
+                a potential tipping point. This enables the identification of early-warning signals for influenza outbreaks. For more details regarding 
+                the theory and the model, please refer to this <a href="https://pubmed.ncbi.nlm.nih.gov/30418819/">paper</a>.
+            </p>
+            <h2>Demo</h2>
+            <p>
+                This simple demo below visualizes the DNM model in action through two synchronized animations:
+            </p>
+            <ul>
+                <li>
+                    <strong>Network representation:</strong>
+                    <ul>
+                        <li>Nodes (wards) are colored based on their I-scores, with green indicating stability and red indicating criticality.</li>
+                        <li>Edges between nodes represent correlation strength, with widths showing the magnitude of connections.</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Bar chart of weekly influenza cases:</strong>
+                    <ul>
+                        <li>Blue bars display current week's influenza cases in each ward.</li>
+                        <li>Red bars appear during "warning weeks," highlighting spikes in the I-score that signal an imminent outbreak (it can happen multiple times).
+                            You would see that as the outbreak happen, the flu cases would spike up, creating a large differential between the 'current week' cases and 
+                            the 'warning week' cases.
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+            <p>
+                The animations use real influenza data for Tokyo's 23 wards from 2024, posted publicly by Tokyo Metropolitan Institue of Public Health
+                 (東京都感染症情報センター). 
+                Press "play" to observe the animation:
+            </p>
+            <h3>Animation: Dynamical Evolution of Flu‐progression Network in Tokyo in 2024</h3>
+            <div class="visualization-container">
+                <div class="plots-container">
+                    <div id="network-viz"></div>
+                    <div id="cases-viz"></div>
+                </div>
+                <div class="controls-container">
+                    <button id="play-button">Play</button>
+                    <input type="range" id="date-slider" min="0" max="{{ dates|length - 1 }}" value="0">
+                    <span id="current-date">{{ dates[0] }}</span>
+                </div>
+            </div>
+
+            <style>
+            .visualization-container {
+                width: 100%;
+                max-width: 1800px;
+                margin: 0 auto;
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+                padding: 20px;
+                height: 800px;
+            }
+
+            .plots-container {
+                display: flex;
+                gap: 20px;
+                height: 100%;
+                min-height: 700px;
+            }
+
+            #network-viz, #cases-viz {
+                height: 100%;
+                border: 1px solid #ddd;
+                background: white;
+            }
+
+            #network-viz {
+                flex: 1;
+                height: 100%;
+                min-width: 600px;
+            }
+
+            #cases-viz {
+                flex: 1;
+                min-width: 450px;
+            }
+
+            /* Controls container */
+            .controls-container {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 20px;
+                padding: 10px;
+                background: #f5f5f5;
+                border-radius: 5px;
+            }
+
+            #play-button {
+                padding: 8px 20px;
+                font-size: 14px;
+                cursor: pointer;
+                background: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+            }
+
+            #play-button:hover {
+                background: #45a049;
+            }
+
+            #date-slider {
+                flex: 1;
+                max-width: 600px;
+                margin: 0 20px;
+            }
+
+            #current-date {
+                font-size: 14px;
+                font-weight: bold;
+                min-width: 100px;
+            }
+
+            /* Visualization elements */
+            .node text {
+                font-family: 'MS Gothic', sans-serif;
+                font-size: 12px;
+                font-weight: bold;
+                pointer-events: none;
+            }
+
+            .warning-text {
+                font-size: 18px;
+                font-weight: bold;
+            }
+
+            .cases-label {
+                font-family: 'MS Gothic', sans-serif;
+                font-size: 10px;
+            }
+
+            .cases-title {
+                font-family: sans-serif;
+                font-weight: bold;
+            }
+
+            .ward-label {
+                font-family: 'MS Gothic', sans-serif;
+                font-size: 10px;
+            }
+
+            .cases-label {
+                font-family: sans-serif;
+                font-size: 10px;
+            }
+
+            /* Add styles for x-axis */
+            .x-axis path,
+            .x-axis line {
+                stroke: #000;
+            }
+
+            .x-axis text {
+                font-size: 10px;
+            }
+            </style>
+
+            <script src="https://d3js.org/d3.v7.min.js"></script>
+
+            <script>
+            const networkData = {{ network_data|tojson }};
+            const dates = {{ dates|tojson }};
+            const historicalMaxCases = {{ historical_max_cases }};
+            let currentIndex = 0;
+            let isPlaying = false;
+            let animationInterval;
+
+            // Get container references first
+            const networkContainer = document.getElementById('network-viz');
+            const casesContainer = document.getElementById('cases-viz');
+
+            // Set up constants and scales first
+            const margin = { top: 60, right: 40, bottom: 40, left: 80 };
+            const networkHeight = 700;
+            const networkWidth = 1000;
+
+            // Create SVGs with proper dimensions
+            const networkSvg = d3.select('#network-viz')
+                .append('svg')
+                .attr('width', '100%')
+                .attr('height', '100%')
+                .attr('viewBox', '0 0 1000 1200')
+                .append('g')
+                .attr('transform', 'translate(50,50)');
+
+            const casesSvg = d3.select('#cases-viz')
+                .append('svg')
+                .attr('width', '100%')
+                .attr('height', '100%')
+                .attr('viewBox', `0 0 500 ${networkHeight}`);
+
+            // Set up scales with proper domains based on data
+            const xExtent = d3.extent(networkData[0].nodes, d => d.x);
+            const yExtent = d3.extent(networkData[0].nodes, d => d.y);
+
+            const xScale = d3.scaleLinear()
+                .domain(xExtent)
+                .range([margin.left + 100, networkWidth - margin.right - 100]);  // Add padding
+
+            const yScale = d3.scaleLinear()
+                .domain(yExtent)
+                .range([1000, 50]);  // Inverted the range values from [50, 1000] to [1000, 50]
+                                     // This makes higher y-values appear at the top
+
+            // Add color scale for nodes
+            const nodeColorScale = d3.scaleLinear()
+                .domain([0, 0.4, 1])  // I-score typically ranges from 0 to 1
+                .range(['green', 'white', 'red']);
+
+            function updateVisualization(index) {
+                const data = networkData[index];
+                
+                // Convert int to boolean
+                const isWarning = Boolean(data.is_warning);
+                const postWarning = Boolean(data.post_warning);
+                const showWarningData = Boolean(data.show_warning_data);
+                
+                // Clear previous content
+                networkSvg.selectAll('*').remove();
+                casesSvg.selectAll('*').remove();
+
+                // Add warning signal text at the top left
+                networkSvg.append('text')
+                    .attr('x', margin.left + 20)
+                    .attr('y', margin.top)
+                    .attr('text-anchor', 'start')
+                    .attr('font-size', '20px')
+                    .attr('font-weight', 'bold')
+                    .text(`Last Early Warning Signal: ${data.last_warning_date || 'Not Yet Signalled'}`);
+
+                // Add I-score color scale legend
+                const legendWidth = 300;  // Increased width
+                const legendHeight = 30;  // Increased height
+                
+                // Create gradient for the color scale
+                const defs = networkSvg.append("defs");
+                const linearGradient = defs.append("linearGradient")
+                    .attr("id", "i-score-gradient")
+                    .attr("x1", "0%")
+                    .attr("y1", "0%")
+                    .attr("x2", "100%")
+                    .attr("y2", "0%");
+
+                // Add color stops
+                linearGradient.append("stop")
+                    .attr("offset", "0%")
+                    .attr("stop-color", "green");
+                
+                linearGradient.append("stop")
+                    .attr("offset", "40%")
+                    .attr("stop-color", "white");
+                
+                linearGradient.append("stop")
+                    .attr("offset", "100%")
+                    .attr("stop-color", "red");
+
+                // Create color scale rectangle - positioned even lower at bottom right
+                const legendGroup = networkSvg.append("g")
+                    .attr("transform", `translate(${networkWidth - margin.right - legendWidth - 50}, ${networkHeight - margin.bottom + 300})`);
+
+                // Add white background rectangle for better visibility
+                legendGroup.append("rect")
+                    .attr("x", -10)
+                    .attr("y", -30)
+                    .attr("width", legendWidth + 20)
+                    .attr("height", legendHeight + 60)
+                    .attr("fill", "white")
+                    .attr("stroke", "#ccc")
+                    .attr("stroke-width", 1);
+
+                legendGroup.append("rect")
+                    .attr("width", legendWidth)
+                    .attr("height", legendHeight)
+                    .style("fill", "url(#i-score-gradient)");
+
+                // Add labels for the color scale with larger, bold font
+                legendGroup.append("text")
+                    .attr("x", 0)
+                    .attr("y", legendHeight + 20)
+                    .attr("text-anchor", "start")
+                    .attr("font-size", "14px")
+                    .attr("font-weight", "bold")
+                    .text("I-Score: 0");
+
+                legendGroup.append("text")
+                    .attr("x", legendWidth / 2)
+                    .attr("y", legendHeight + 20)
+                    .attr("text-anchor", "middle")
+                    .attr("font-size", "14px")
+                    .attr("font-weight", "bold")
+                    .text("0.4");
+
+                legendGroup.append("text")
+                    .attr("x", legendWidth)
+                    .attr("y", legendHeight + 20)
+                    .attr("text-anchor", "end")
+                    .attr("font-size", "14px")
+                    .attr("font-weight", "bold")
+                    .text("1");
+
+                legendGroup.append("text")
+                    .attr("x", legendWidth / 2)
+                    .attr("y", -10)
+                    .attr("text-anchor", "middle")
+                    .attr("font-size", "16px")
+                    .attr("font-weight", "bold")
+                    .text("I-Score Scale");
+
+                // Network Visualization (without background color change)
+                // Add nodes
+                networkSvg.selectAll('.node')
+                    .data(data.nodes)
+                    .join('circle')
+                    .attr('class', 'node')
+                    .attr('cx', d => xScale(d.x))
+                    .attr('cy', d => yScale(d.y))
+                    .attr('r', 20)
+                    .attr('fill', d => nodeColorScale(d.i_score))
+                    .attr('stroke', 'black')
+                    .attr('stroke-width', 1);
+
+                // Draw edges with PCC-based width
+                networkSvg.selectAll('line')
+                    .data(data.edges)
+                    .join('line')
+                    .attr('x1', d => xScale(data.nodes.find(n => n.id === d.source).x))
+                    .attr('y1', d => yScale(data.nodes.find(n => n.id === d.source).y))
+                    .attr('x2', d => xScale(data.nodes.find(n => n.id === d.target).x))
+                    .attr('y2', d => yScale(data.nodes.find(n => n.id === d.target).y))
+                    .attr('stroke', '#999')
+                    .attr('stroke-width', d => d.pcc * 10)  // Scale PCC to visible width
+                    .attr('stroke-opacity', 0.6);
+                
+                // Draw nodes with I-score based colors
+                const nodes = networkSvg.selectAll('g.node')
+                    .data(data.nodes)
+                    .join('g')
+                    .attr('class', 'node')
+                    .attr('transform', d => `translate(${xScale(d.x)},${yScale(d.y)})`);
+                
+                nodes.append('circle')
+                    .attr('r', 28)
+                    .attr('fill', d => nodeColorScale(d.i_score))
+                    .attr('stroke', 'black')
+                    .attr('stroke-width', 1);
+                
+                // Add ward names
+                nodes.append('text')
+                    .text(d => d.id)
+                    .attr('text-anchor', 'middle')
+                    .attr('dy', '.35em')
+                    .attr('font-family', 'MS Gothic')
+                    .attr('font-size', '14px')
+                    .attr('font-weight', 'bold')
+                    .attr('fill', 'black');
+                
+                // Cases Visualization (right side)
+                const sortedNodes = [...data.nodes].sort((a, b) => 
+                    (b.cases + (showWarningData ? b.warning_cases : 0)) - 
+                    (a.cases + (showWarningData ? a.warning_cases : 0))
+                );
+
+                // Create scales for cases
+                const maxCases = d3.max(sortedNodes, d => 
+                    Math.max(d.cases, showWarningData ? d.warning_cases : 0)
+                );
+                
+                const y = d3.scaleBand()
+                    .domain(sortedNodes.map(d => d.id))
+                    .range([margin.top, networkHeight - margin.bottom])
+                    .padding(0.2);  // Increased padding for clusters
+
+                const innerY = d3.scaleBand()
+                    .domain([0, 1])  // Two bars per ward
+                    .range([0, y.bandwidth()])
+                    .padding(0.05);
+
+                const x = d3.scaleLinear()
+                    .domain([0, maxCases])
+                    .range([margin.left, 450 - margin.right]);
+
+                // Create bars group
+                const barsGroup = casesSvg.append('g');
+
+                // Add current cases bars (blue)
+                barsGroup.selectAll('.current-bar')
+                    .data(sortedNodes)
+                    .join('rect')
+                    .attr('class', 'current-bar')
+                    .attr('x', margin.left)
+                    .attr('y', d => y(d.id) + innerY(0))
+                    .attr('width', d => x(d.cases) - margin.left)
+                    .attr('height', innerY.bandwidth())
+                    .attr('fill', 'steelblue');
+
+                // Add warning cases bars (red) if show_warning_data is true
+                if (showWarningData) {
+                    barsGroup.selectAll('.warning-bar')
+                        .data(sortedNodes)
+                        .join('rect')
+                        .attr('class', 'warning-bar')
+                        .attr('x', margin.left)
+                        .attr('y', d => y(d.id) + innerY(1))
+                        .attr('width', d => x(d.warning_cases) - margin.left)
+                        .attr('height', innerY.bandwidth())
+                        .attr('fill', 'rgba(255, 0, 0, 0.7)');
+                }
+
+                // Add ward labels
+                barsGroup.selectAll('.ward-label')
+                    .data(sortedNodes)
+                    .join('text')
+                    .attr('class', 'ward-label')
+                    .attr('x', margin.left - 5)
+                    .attr('y', d => y(d.id) + y.bandwidth() / 2)
+                    .attr('text-anchor', 'end')
+                    .attr('alignment-baseline', 'middle')
+                    .attr('font-family', 'MS Gothic')
+                    .attr('font-size', '12px')
+                    .text(d => d.id);
+
+                // Add case count labels
+                barsGroup.selectAll('.current-cases-label')
+                    .data(sortedNodes)
+                    .join('text')
+                    .attr('class', 'cases-label')
+                    .attr('x', d => x(d.cases) + 5)
+                    .attr('y', d => y(d.id) + innerY(0) + innerY.bandwidth() / 2)
+                    .attr('alignment-baseline', 'middle')
+                    .attr('font-size', '12px')
+                    .text(d => d.cases);
+
+                if (showWarningData) {
+                    barsGroup.selectAll('.warning-cases-label')
+                        .data(sortedNodes)
+                        .join('text')
+                        .attr('class', 'cases-label')
+                        .attr('x', d => x(d.warning_cases) + 5)
+                        .attr('y', d => y(d.id) + innerY(1) + innerY.bandwidth() / 2)
+                        .attr('alignment-baseline', 'middle')
+                        .attr('font-size', '12px')
+                        .text(d => d.warning_cases);
+                }
+
+                // Add title
+                casesSvg.append('text')
+                    .attr('x', (450) / 2)
+                    .attr('y', margin.top - 40)
+                    .attr('text-anchor', 'middle')
+                    .attr('font-size', '14px')
+                    .attr('font-weight', 'bold')
+                    .text(`Weekly Influenza Cases by Ward (Total: ${data.total_cases})`);
+
+                // Add legend
+                const legend = casesSvg.append('g')
+                    .attr('class', 'legend')
+                    .attr('transform', `translate(${margin.left}, ${margin.top - 20})`);
+
+                // Current cases legend
+                legend.append('rect')
+                    .attr('width', 15)
+                    .attr('height', 15)
+                    .attr('fill', 'steelblue');
+
+                legend.append('text')
+                    .attr('x', 20)
+                    .attr('y', 12)
+                    .text('This Week');
+
+                // Warning cases legend (if applicable)
+                if (showWarningData) {
+                    legend.append('rect')
+                        .attr('width', 15)
+                        .attr('height', 15)
+                        .attr('x', 120)
+                        .attr('fill', 'rgba(255, 0, 0, 0.7)');
+
+                    legend.append('text')
+                        .attr('x', 140)
+                        .attr('y', 12)
+                        .text('Warning Week');
+                }
+
+                // Add x-axis
+                casesSvg.append('g')
+                    .attr('transform', `translate(0,${networkHeight - margin.bottom})`)
+                    .call(d3.axisBottom(x));
+
+                // Update slider and date display
+                document.getElementById('date-slider').value = index;
+                document.getElementById('current-date').textContent = dates[index];
+            }
+
+            // Initialize visualization
+            updateVisualization(0);
+
+            // Set up event listeners
+            document.getElementById('date-slider').addEventListener('input', function() {
+                currentIndex = parseInt(this.value);
+                updateVisualization(currentIndex);
+            });
+
+            document.getElementById('play-button').addEventListener('click', function() {
+                isPlaying = !isPlaying;
+                this.textContent = isPlaying ? 'Pause' : 'Play';
+                
+                if (isPlaying) {
+                    animationInterval = setInterval(() => {
+                        currentIndex = (currentIndex + 1) % dates.length;
+                        updateVisualization(currentIndex);
+                        if (currentIndex === dates.length - 1) {
+                            isPlaying = false;
+                            clearInterval(animationInterval);
+                            this.textContent = 'Play';
+                        }
+                    }, 500);
+                } else {
+                    clearInterval(animationInterval);
+                }
+            });
+
+            // Add console logging for debugging
+            function logNodePositions() {
+                console.log('First frame node positions:');
+                networkData[0].nodes.forEach(node => {
+                    console.log(`Node ${node.id}: x=${xScale(node.x)}, y=${yScale(node.y)}`);
+                });
+            }
+            logNodePositions();
+
+            // Add debug logging
+            console.log('First frame sample node:', networkData[0].nodes[0]);
+            console.log('First frame sample edge:', networkData[0].edges[0]);
+
+            // Also add this to check if the scales are working properly
+            console.log('xScale domain:', xScale.domain());
+            console.log('yScale domain:', yScale.domain());
+            console.log('Sample x coordinate mapped:', xScale(networkData[0].nodes[0].x));
+            console.log('Sample y coordinate mapped:', yScale(networkData[0].nodes[0].y));
+
+            // Modify the cases chart
+            function updateCasesChart(data) {
+                const margin = {top: 20, right: 20, bottom: 30, left: 40};
+                const width = casesChartWidth - margin.left - margin.right;
+                const height = casesChartHeight - margin.top - margin.bottom;
+
+                // Clear previous chart
+                d3.select("#cases-chart").selectAll("*").remove();
+
+                const svg = d3.select("#cases-chart")
+                    .append("g")
+                    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+                // Group data by ward
+                const wardsData = {};
+                data.nodes.forEach(node => {
+                    wardsData[node.id] = {
+                        current: node.cases,
+                        warning: node.warning_cases
+                    };
+                });
+
+                // Create stacked data
+                const stackedData = Object.entries(wardsData).map(([ward, values]) => ({
+                    ward: ward,
+                    current: values.current,
+                    warning: data.show_warning_data ? values.warning : 0
+                }));
+
+                // Set up scales
+                const x = d3.scaleBand()
+                    .range([0, width])
+                    .padding(0.1)
+                    .domain(stackedData.map(d => d.ward));
+
+                const y = d3.scaleLinear()
+                    .range([height, 0])
+                    .domain([0, d3.max(stackedData, d => d.current + (data.show_warning_data ? d.warning : 0))]);
+
+                // Add current cases bars
+                svg.selectAll(".current-bar")
+                    .data(stackedData)
+                    .enter()
+                    .append("rect")
+                    .attr("class", "current-bar")
+                    .attr("x", d => x(d.ward))
+                    .attr("y", d => y(d.current))
+                    .attr("width", x.bandwidth())
+                    .attr("height", d => height - y(d.current))
+                    .attr("fill", "steelblue");
+
+                // Add warning cases bars if show_warning_data is true
+                if (data.show_warning_data) {
+                    svg.selectAll(".warning-bar")
+                        .data(stackedData)
+                        .enter()
+                        .append("rect")
+                        .attr("class", "warning-bar")
+                        .attr("x", d => x(d.ward))
+                        .attr("y", d => y(d.current + d.warning))
+                        .attr("width", x.bandwidth())
+                        .attr("height", d => height - y(d.warning))
+                        .attr("fill", "rgba(255, 0, 0, 0.5)");
+                }
+
+                // Add axes
+                svg.append("g")
+                    .attr("transform", `translate(0,${height})`)
+                    .call(d3.axisBottom(x))
+                    .selectAll("text")
+                    .attr("transform", "rotate(-45)")
+                    .style("text-anchor", "end");
+
+                svg.append("g")
+                    .call(d3.axisLeft(y));
+
+                // Add legend
+                const legend = svg.append("g")
+                    .attr("class", "legend")
+                    .attr("transform", `translate(${width - 100}, 0)`);
+
+                legend.append("rect")
+                    .attr("x", 0)
+                    .attr("width", 18)
+                    .attr("height", 18)
+                    .attr("fill", "steelblue");
+
+                legend.append("text")
+                    .attr("x", 24)
+                    .attr("y", 9)
+                    .attr("dy", ".35em")
+                    .text("Current Cases");
+
+                if (data.show_warning_data) {
+                    legend.append("rect")
+                        .attr("x", 0)
+                        .attr("y", 24)
+                        .attr("width", 18)
+                        .attr("height", 18)
+                        .attr("fill", "rgba(255, 0, 0, 0.5)");
+
+                    legend.append("text")
+                        .attr("x", 24)
+                        .attr("y", 33)
+                        .attr("dy", ".35em")
+                        .text("Warning Cases");
+                }
+            }
+            </script>
+            <ul>
+                <li>The network transitions from a stable state (green/white nodes, stable edges) to an unstable one (red nodes, fluctuating edges), 
+                    particularly between the end of October to early November. 
+                </li>
+                <li>The I-scores of critical wards spike during warning weeks (early November), ahead of the visible increases in influenza cases.</li>
+            </ul>
+        </section>
+    </main>
+    <section class="citation">
+        <h2>Citation</h2>
+        <p>
+            <br>
+            Data Source: https://survey.tmiph.metro.tokyo.lg.jp/epidinfo/weeklyhc.do
+            <br>
+            <br>
+        </p>
+    </section>
+    <footer>
+        <p>&copy; Ely Chen</p>
+    </footer>
+</body>
+</html> 
